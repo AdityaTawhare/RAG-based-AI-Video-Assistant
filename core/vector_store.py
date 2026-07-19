@@ -1,8 +1,10 @@
-import os 
+import os
+import shutil
 from langchain_chroma import Chroma 
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
+import chromadb
 
 CHROMA_DIR = "vector_db"
 COLLECTION_NAME = "meeting_transcript"
@@ -16,6 +18,20 @@ def get_embeddings():
 
 def build_vector_store(transcript : str)->Chroma:
     print("Building vector Store")
+
+    # ── Clear old data so RAG only uses the current transcript ──
+    if os.path.exists(CHROMA_DIR):
+        try:
+            client = chromadb.PersistentClient(path=CHROMA_DIR)
+            existing = [c.name for c in client.list_collections()]
+            if COLLECTION_NAME in existing:
+                client.delete_collection(COLLECTION_NAME)
+                print(f"Deleted old collection '{COLLECTION_NAME}'")
+            del client
+        except Exception:
+            # Fallback: nuke the directory entirely
+            shutil.rmtree(CHROMA_DIR, ignore_errors=True)
+            print("Cleared vector_db directory")
 
     splitter = RecursiveCharacterTextSplitter(
         chunk_size = 500,
