@@ -1,0 +1,24 @@
+# Virtual environment
+.venv/
+
+# Environment variables
+.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Downloaded / uploaded audio files
+downloades/
+
+# ChromaDB vector store
+vector_db/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
