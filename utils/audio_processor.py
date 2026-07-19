@@ -5,24 +5,41 @@ import os
 DOWNLOAD_DIR = 'downloades'
 os.makedirs(DOWNLOAD_DIR,exist_ok = True)
 
-def download_youtube_audio(url :str) ->str:
+def download_youtube_audio(url: str) -> str:
     output_path = os.path.join(DOWNLOAD_DIR, "%(title)s.%(ext)s")
     ydl_opts = {
-        "format": "bestaudio/best",   
+        "format": "bestaudio/best",
         "outtmpl": output_path,
+        "noplaylist": True,
+        "quiet": True,
+        "no_warnings": True,
+        "nocheckcertificate": True,
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["android", "web"]
+            }
+        },
         "postprocessors": [
             {
                 "key": "FFmpegExtractAudio",
-                "preferredcodec": "wav", 
+                "preferredcodec": "wav",
                 "preferredquality": "192",
             }
         ],
-        "quiet": True,
     }
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True)
-        filename = ydl.prepare_filename(info).replace(".webm", ".wav").replace(".m4a", ".wav")
-    return filename
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            filename = ydl.prepare_filename(info).replace(".webm", ".wav").replace(".m4a", ".wav").replace(".mp4", ".wav")
+        return filename
+    except yt_dlp.utils.DownloadError as e:
+        raise RuntimeError(
+            "The YouTube video is unavailable, private, or region-restricted. "
+            "Please check the URL, make sure the video is public, or try uploading the file directly using the '📁 Upload File' tab."
+        ) from e
+    except Exception as e:
+        raise RuntimeError(f"Failed to download YouTube video: {str(e)}") from e
 
 
 
