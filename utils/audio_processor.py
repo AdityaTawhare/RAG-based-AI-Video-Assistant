@@ -1,9 +1,28 @@
+import re
 import yt_dlp
 from pydub import AudioSegment 
 import os
     
 DOWNLOAD_DIR = 'downloades'
-os.makedirs(DOWNLOAD_DIR,exist_ok = True)
+os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+
+def extract_youtube_video_id(url: str) -> str:
+    """Extract 11-character video ID from various YouTube URL formats."""
+    pattern = r"(?:v=|\/|be\/|embed\/)([0-9A-Za-z_-]{11})"
+    match = re.search(pattern, url)
+    return match.group(1) if match else None
+
+def fetch_youtube_transcript_direct(video_id: str) -> str:
+    """Attempt instant transcript retrieval via youtube_transcript_api (bypasses cloud IP audio blocks)."""
+    try:
+        from youtube_transcript_api import YouTubeTranscriptApi
+        transcript_list = YouTubeTranscriptApi.get_transcript(video_id, languages=['en', 'en-US', 'hi', 'en-IN'])
+        text = " ".join([item.get('text', '') for item in transcript_list])
+        if text.strip():
+            return text.strip()
+    except Exception as e:
+        print(f"Direct YouTube transcript API unavailable for {video_id}: {e}")
+    return None
 
 def download_youtube_audio(url: str) -> str:
     output_path = os.path.join(DOWNLOAD_DIR, "%(title)s.%(ext)s")
@@ -48,8 +67,8 @@ def download_youtube_audio(url: str) -> str:
             last_error = e
 
     raise RuntimeError(
-        "YouTube blocked the automated cloud download request (YouTube blocks cloud server IPs like Streamlit Cloud / AWS). "
-        "Please switch to the '📁 Upload File' tab and upload your audio or video file directly!"
+        "YouTube blocked automated audio download from Streamlit Cloud's IP address. "
+        "Please use the '📁 Upload File' tab to upload your video/audio file directly!"
     ) from last_error
 
 
@@ -81,7 +100,18 @@ def chunk_audio(wav_path : str , chunk_minutes : int = 10) -> list:
 
 def process_input(source: str) -> list:
     if source.startswith("http://") or source.startswith("https://"):
-        print("Detected YouTube URL. Downloading audio...")
+        print("Detected YouTube URL.")
+        video_id = extract_youtube_video_id(source)
+        if video_id:
+            direct_text = fetch_youtube_transcript_direct(video_id)
+            if direct_text:
+                print("Direct YouTube transcript retrieved successfully! Skipping audio download.")
+                txt_path = os.path.join(DOWNLOAD_DIR, f"yt_{video_id}_transcript.txt")
+                with open(txt_path, "w", encoding="utf-8") as f:
+                    f.write(direct_text)
+                return [txt_path]
+
+        print("Direct transcript unavailable. Downloading audio via yt-dlp...")
         wav_path = download_youtube_audio(source)
     else:
         print("Detected local file. Converting to WAV...")

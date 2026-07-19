@@ -99,6 +99,11 @@ def transcribe_chunk(chunk_path: str, language: str = "english") -> str:
 
 
 def transcribe_all(chunks: list, language: str = "english") -> str:
+    # Direct transcript text file bypass
+    if len(chunks) == 1 and str(chunks[0]).endswith(".txt") and os.path.exists(chunks[0]):
+        print("Using direct retrieved transcript text...")
+        with open(chunks[0], "r", encoding="utf-8") as f:
+            return f.read().strip()
 
     full_transcript = "" 
 
