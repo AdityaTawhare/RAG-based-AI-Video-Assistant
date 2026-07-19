@@ -7,39 +7,50 @@ os.makedirs(DOWNLOAD_DIR,exist_ok = True)
 
 def download_youtube_audio(url: str) -> str:
     output_path = os.path.join(DOWNLOAD_DIR, "%(title)s.%(ext)s")
-    ydl_opts = {
-        "format": "bestaudio/best",
-        "outtmpl": output_path,
-        "noplaylist": True,
-        "quiet": True,
-        "no_warnings": True,
-        "nocheckcertificate": True,
-        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "extractor_args": {
-            "youtube": {
-                "player_client": ["android", "web"]
-            }
-        },
-        "postprocessors": [
-            {
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": "wav",
-                "preferredquality": "192",
-            }
-        ],
-    }
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            filename = ydl.prepare_filename(info).replace(".webm", ".wav").replace(".m4a", ".wav").replace(".mp4", ".wav")
-        return filename
-    except yt_dlp.utils.DownloadError as e:
-        raise RuntimeError(
-            "The YouTube video is unavailable, private, or region-restricted. "
-            "Please check the URL, make sure the video is public, or try uploading the file directly using the '📁 Upload File' tab."
-        ) from e
-    except Exception as e:
-        raise RuntimeError(f"Failed to download YouTube video: {str(e)}") from e
+    
+    # Try different player clients to bypass YouTube cloud datacenter IP blocks
+    client_configs = [
+        ["mweb", "ios"],
+        ["tv_embedded", "android"],
+        ["web_embedded", "web"]
+    ]
+    
+    last_error = None
+    for clients in client_configs:
+        ydl_opts = {
+            "format": "bestaudio/best",
+            "outtmpl": output_path,
+            "noplaylist": True,
+            "quiet": True,
+            "no_warnings": True,
+            "nocheckcertificate": True,
+            "geo_bypass": True,
+            "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
+            "extractor_args": {
+                "youtube": {
+                    "player_client": clients
+                }
+            },
+            "postprocessors": [
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "wav",
+                    "preferredquality": "192",
+                }
+            ],
+        }
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                filename = ydl.prepare_filename(info).replace(".webm", ".wav").replace(".m4a", ".wav").replace(".mp4", ".wav")
+            return filename
+        except Exception as e:
+            last_error = e
+
+    raise RuntimeError(
+        "YouTube blocked the automated cloud download request (YouTube blocks cloud server IPs like Streamlit Cloud / AWS). "
+        "Please switch to the '📁 Upload File' tab and upload your audio or video file directly!"
+    ) from last_error
 
 
 
